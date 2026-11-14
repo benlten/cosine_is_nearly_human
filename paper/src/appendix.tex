@@ -665,4 +665,41 @@ All pairs, $n=1{,}216$ & 623 & 446 & 127 & 20 & 44.3\% \\
 
 \paragraph{What the conflict means.} 2AFC is a forced comparison with no ``neither'' option: a candidate wins by being closer to the reference than the alternative, however different both are. JND asks whether a single candidate can be told apart from the reference. A unanimous 2AFC label therefore certifies a ranking, not similarity, and the 77\% of triplets with both candidates judged different show that most of these unanimous labels rank two visibly different images. Scoring a model against the majority label of either task discards both the splits within each task and the conflict between them.
 
+\paragraph{How models resolve the mismatches.} Table~\ref{tab:mismatch} scores sixteen backbones on the triplets where the two tasks can be compared directly. On the 608 triplets DreamSim-Pretrained picks the unanimous 2AFC winner 96.2\% of the time, 6 to 17 points more than any zero-shot backbone. That lead does not carry over to the JND test the DreamSim paper describes, the 137 triplets with exactly one candidate judged ``same.'' DreamSim-Pretrained picks the judged-same candidate in 75.2\% of them, zero-shot DINOv3 in 76.6\%, and DINOv1 in 74.5\%; each DINO backbone's difference from DreamSim has a 95\% bootstrap interval that includes zero. The data set this limit: in 34 of the 137 triplets the judged-same candidate is the 2AFC loser, so a model that reproduced every 2AFC label would score 103 of 137, or 75.2\%, which is DreamSim-Pretrained's score. On those 34 conflict triplets DreamSim-Pretrained sides with the JND verdict 4 times, and zero-shot DINOv2 and DINOv3 10 times each (a difference of 18 points, 95\% bootstrap interval 3 to 33). The sample is small, and the zero-shot backbones also depart from the 2AFC winner more often on the other 574 triplets (12--13\% against 3\%). The result therefore shows that DreamSim follows the 2AFC ranking more closely, not that DINO models JND.
+
+DreamSim-Pretrained keeps the highest JND AUC over all pairs (0.727). Part of every model's AUC comes from the 2AFC ranking itself: chosen candidates are judged ``same'' more often than rejected ones (17.8\% against 6.4\%), so scoring every winner below every loser already gives an AUC of 0.633. The last column removes that share by computing the AUC among winners and among losers separately and averaging the two. DreamSim's margin over DINOv3 then falls from 0.030 to 0.019, with a 95\% bootstrap interval of $-0.018$ to $+0.059$.
+
+\begin{table}[ht]
+\caption{Model behavior on the 608 triplets with both human labels. \emph{2AFC winner}: share of the 608 triplets in which the model puts the 2AFC winner closer to the reference. \emph{Judged same}: share of the 137 triplets with exactly one candidate judged ``same'' in which the model puts that candidate closer. \emph{Sides with JND}: number of the 34 conflict triplets, where the judged-same candidate is the 2AFC loser, in which the model puts the loser closer. \emph{Role fixed}: mean of the JND AUC among winners and among losers. The last row is a score that reproduces every 2AFC label. $^\ddagger$This checkpoint's training fold contained 80\% of the JND triplets.}
+\label{tab:mismatch}
+\centering
+\small
+\begin{tabular}{lccccc}
+\toprule
+ & 2AFC winner & Judged same & Sides with JND & \multicolumn{2}{c}{JND AUC} \\
+\cmidrule(lr){5-6}
+Backbone & (\%, $n{=}608$) & (\%, $n{=}137$) & (of 34) & all pairs & role fixed \\
+\midrule
+DINOv1              & 90.1 & 74.5 & 6  & 0.674 & 0.632 \\
+DINOv2              & 86.0 & 71.5 & 10 & 0.677 & 0.640 \\
+DINOv3              & 86.7 & 76.6 & 10 & 0.697 & 0.663 \\
+CLIP-ViT-B/16       & 81.7 & 67.2 & 8  & 0.661 & 0.632 \\
+OpenCLIP-ViT-B/16   & 85.2 & 70.1 & 10 & 0.696 & 0.666 \\
+ViT-B/16            & 85.5 & 71.5 & 9  & 0.670 & 0.630 \\
+ConvNeXt-Large      & 85.7 & 68.6 & 5  & 0.648 & 0.618 \\
+ResNet-50           & 79.9 & 62.8 & 8  & 0.647 & 0.612 \\
+ResNet-152          & 79.1 & 63.5 & 5  & 0.653 & 0.607 \\
+BiT-M R101x3        & 84.0 & 70.1 & 5  & 0.634 & 0.597 \\
+CORnet-S            & 86.5 & 72.3 & 6  & 0.675 & 0.641 \\
+BagNet-33           & 82.7 & 68.6 & 9  & 0.651 & 0.608 \\
+VOneResNet50        & 85.5 & 73.0 & 11 & 0.674 & 0.644 \\
+DreamSim-ZS         & 90.3 & 74.5 & 6  & 0.676 & 0.635 \\
+DINOv2 + LoRA$^\ddagger$ & 89.0 & 77.4 & 10 & 0.720 & 0.662 \\
+DreamSim-Pretrained & 96.2 & 75.2 & 4  & 0.727 & 0.683 \\
+\midrule
+2AFC labels alone   & 100.0 & 75.2 & 0 & 0.633 & 0.500 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \clearpage
