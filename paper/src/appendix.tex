@@ -6,20 +6,20 @@
 \applabel{A}{app:naming}
 \vspace{1em}
 
-Throughout the paper we identify each evaluated model by a four-part name of the form \texttt{\{Backbone\}-\{Adaptation\}-\{Head\}-\{Dataset\}}. Table~\ref{tab:naming} enumerates the possible values each component can take. Backbones are the feature extractors. Adaptation describes whether the backbone is frozen, partially trained via LoRA adapters, fully retrained, or used with externally-supplied pretrained weights. The head is the module that converts two (or three) backbone outputs into a similarity score; nine variants are compared including plain cosine distance, three cognitive-science-motivated architectures (Cog-v1 through Cog), the published Tversky Neural Network of \citet{doumbouya2025tversky}, the DreamSim margin-hinge ensemble loss, and a VLM logit-ratio judge. Dataset values record which NIGHTS subset a model was trained and evaluated on; omitting the dataset suffix defaults to NIGHTS-100k, our primary evaluation target.
+Throughout the paper we identify each evaluated model by a four-part name of the form \texttt{\{Backbone\}-\{Adaptation\}-\{Head\}-\{Dataset\}}. Figure~\ref{fig:recipe} illustrates how these choices enter training and evaluation. Table~\ref{tab:naming} lists the abbreviations. Backbones are the feature extractors. Adaptation describes whether the backbone is frozen, partially trained via LoRA adapters, fully retrained, or used with externally-supplied pretrained weights. The head is the module that converts two (or three) backbone outputs into a similarity score; the heads compared are plain cosine distance, small learned heads (Cog and its variants), and the DreamSim margin-hinge ensemble loss. Dataset values record which NIGHTS subset a model was trained and evaluated on; omitting the dataset suffix defaults to NIGHTS-100k, our primary evaluation target.
 
 \begin{table}[!ht]
-\caption{Model naming scheme. Every model name in the paper is a concatenation of one value from each of the four rows. Example: \texttt{DINOv3-LoRA-Cog} uses DINOv3 as backbone, rank-8 LoRA on qkv/proj, our Cog head (frozen cosine alignment + GCM context + Tversky contrast), evaluated on the full NIGHTS-100k corpus.}
+\caption{Model naming scheme. Every model name in the paper is a concatenation of one value from each of the four rows. Example: \texttt{DINOv3-LoRA-Cog} uses DINOv3 as backbone, rank-8 LoRA on qkv/proj, our learned Cog head, evaluated on the full NIGHTS-100k corpus.}
 \label{tab:naming}
 \centering
 \small
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lll}
 \toprule
 Component & Values & Description \\
 \midrule
 Backbone & DINOv1, DINOv2, DINOv3 & Self-supervised ViTs \\
  & C-RADIOv4 & Distillation of DINOv3+SigLIP2+SAM3 \\
- & Qwen3-VL-4B & Vision-language model \\
  & DreamSim & DINO+CLIP+OpenCLIP ensemble \\
  & AlexNet-lin & LPIPS classical backbone \\
 \midrule
@@ -29,14 +29,10 @@ Adaptation & ZS & Zero-shot, frozen backbone \\
  & Scratch & Retrained on the stated dataset from scratch \\
 \midrule
 Head & CLS-cos & Cosine distance on CLS token \\
- & Tversky-frozen & Tversky contrast, $\alpha=\beta=0.5$ \\
- & Cog-v1 & Learned cross-attention + context + Tversky \\
- & Cog-v2 & Shared alignment + bottleneck + Tversky \\
- & Cog & Frozen cosine align + GCM context + Tversky \\
- & Cog-strat & Cog with inverse-frequency sampling \\
- & TNN & Doumbouya 2025 differentiable TNN \\
+ & Cog & Learned head: cosine distance plus two learned distance terms \\
+ & Cog-strat & Cog trained with rarer vote patterns sampled more often \\
+ & TNN & A second learned head of the same size \\
  & Hinge-ens & Margin hinge loss over ensemble features \\
- & VLM-judge & Qwen3-VL logit ratio on A/B choice \\
 \midrule
 Dataset & NIGHTS-100k & Full 100k, 64{,}420 non-tie, 35{,}580 ties held out \\
  & NIGHTS-100k-unan & X-0 subset, $N{=}20{,}017$ \\
@@ -60,7 +56,7 @@ Table~\ref{tab:main} reports mean accuracy and standard deviation over five cros
 \label{fig:drop}
 \end{figure}
 
-Figure~\ref{fig:agreement} gives the per-model curves behind Figures~\ref{fig:tier_ceiling} and~\ref{fig:gap_ties}, and Table~\ref{tab:tiergap} the accuracies by vote pattern.
+Figure~\ref{fig:agreement} gives the per-model curves behind Figure~\ref{fig:tier_ceiling}, and Table~\ref{tab:tiergap} the accuracies by vote pattern. The curves rise with agreement and share one shape: highest on unanimous triplets, falling as disagreement grows, and lowest on 2-1 triplets, where the human majority is a single vote. The spread between models widens with agreement: on 2-1 triplets the worst (LPIPS, 57.0\%) and the best (DreamSim-Pretrained, 65.2\%) differ by 8.2 pp, on 3-1 triplets the spread is 12 pp, and on unanimous triplets it is 22 pp. In other words, the more accurate models pull ahead mostly where human agreement is already strong; where people were split, all models sit close together and not far above chance. Most of the extra accuracy comes from the triplets whose labels are reliable, not from doing better on the ones where people disagree.
 
 \begin{figure}[!ht]
 \centering
@@ -70,7 +66,7 @@ Figure~\ref{fig:agreement} gives the per-model curves behind Figures~\ref{fig:ti
 \end{figure}
 
 \begin{table}[!ht]
-\caption{Accuracy by agreement tier, pooled over the five test folds, against the per-tier reproducibility ceiling (\S\ref{sec:ceiling}); the numbers behind Figures~\ref{fig:tier_ceiling} and~\ref{fig:gap_ties}. The LoRA columns are DINOv1-LoRA-Cog, DINOv2-LoRA-Cos, and DINOv3-LoRA-Cog. $^\dagger$Released weights overlap our test folds (Table~\ref{tab:main}).}
+\caption{Accuracy by agreement tier, pooled over the five test folds, against the per-tier reproducibility ceiling (\S\ref{sec:ceiling}); the numbers behind Figure~\ref{fig:tier_ceiling}. The LoRA columns are DINOv1-LoRA-Cog, DINOv2-LoRA-Cos, and DINOv3-LoRA-Cog. $^\dagger$Released weights overlap our test folds (Table~\ref{tab:main}).}
 \label{tab:tiergap}
 \centering
 \footnotesize
@@ -92,10 +88,10 @@ All non-tie & 64{,}420 & $\approx$89\% & 74.1 & 70.6 & 72.0 & 75.1 & 78.3 & 78.7
 \end{tabular}
 \end{table}
 
-\paragraph{Training-tier ladder.} Table~\ref{tab:ladder} asks whether the lower-agreement triplets help as training data. We trained DINOv2-LoRA-Cos on nested subsets of the fold-0 training split, ordered by agreement, and scored every run on the same fold-0 test split. A common validation set (10\% of the fold-0 training split) was removed from every run, and each run kept the epoch with the best validation accuracy on the tiers it trained on. Training on unanimous triplets alone gives 94\% of the gain over zero-shot that training on all triplets gives. Adding the remaining 21{,}380 triplets, almost all 2-1 and 3-1, to the first three tiers does not raise accuracy (78.4\% to 78.1\%). At equal size, unanimous triplets beat a random sample by 0.8 pp. In every run, validation accuracy peaked after one epoch, and by epoch 10 training accuracy had reached 100\% and test accuracy had fallen below zero-shot. These are single runs on one fold: an accuracy in the table has a standard error of 0.4 pp overall and 0.7--1.2 pp within a tier.
+\paragraph{Training-tier ladder.} Figure~\ref{fig:training_sets} compares training on unanimous examples with training on all examples. Table~\ref{tab:ladder} gives the intermediate conditions. We trained each DINO backbone with LoRA and the cosine head on nested subsets of the fold-0 training split, ordered by agreement, and scored every run on the same fold-0 test split. A common validation set (10\% of the fold-0 training split) was removed from every run, and each run kept the epoch with the best validation accuracy on the tiers it trained on. Training on unanimous triplets alone, 31\% of the training set, gives 80\% (DINOv1), 94\% (DINOv2), and 89\% (DINOv3) of the gain over zero-shot that training on all triplets gives. The other 31{,}924 triplets add 0.8, 0.4, and 0.9 pp; the difference is significant for DINOv1 and DINOv3 (paired McNemar $z = 2.7$ and $3.1$) and not for DINOv2 ($z = 1.2$). The last 21{,}380 triplets, almost all 2-1 and 3-1, add 0.9 pp for DINOv1, 0.5 pp for DINOv3, and nothing for DINOv2 (78.4\% to 78.1\%). At equal size, unanimous triplets do as well as a random sample or better ($+0.1$, $+0.8$, and $+0.5$ pp). DINOv2 was trained for ten epochs and DINOv1 and DINOv3 for three. Validation accuracy peaked after one or two epochs in every run except the DINOv3 random-sample run, which was still rising by 0.2 pp at epoch 3. In the ten-epoch DINOv2 runs, training accuracy reached 100\% and test accuracy fell below zero-shot. These are single runs on one fold: an accuracy in the table has a standard error of 0.4 pp overall and 0.7--1.2 pp within a tier.
 
 \begin{table}[!ht]
-\caption{Training-tier ladder on fold 0. DINOv2-LoRA-Cos is trained on nested subsets of the training split and scored on the fold-0 test split (12{,}884 triplets) by vote pattern. The first row is the same backbone before training; the last is a random sample of all non-tie triplets at the size of the unanimous set.}
+\caption{Training-tier ladder on fold 0. Each DINO backbone is trained with LoRA and the cosine head on nested subsets of the training split and scored on the fold-0 test split (12{,}884 triplets) by vote pattern. In each block the first row is the backbone before training and the last is a random sample of all non-tie triplets at the size of the unanimous set.}
 \label{tab:ladder}
 \centering
 \small
@@ -103,13 +99,29 @@ All non-tie & 64{,}420 & $\approx$89\% & 74.1 & 70.6 & 72.0 & 75.1 & 78.3 & 78.7
 \toprule
 Training set & Triplets & 2-1 & 3-1 & 4-1 & X-1 ($X \geq 5$) & X-0 & All \\
 \midrule
+\multicolumn{8}{l}{\emph{DINOv1}} \\
+None (zero-shot) & 0 & 63.0 & 68.5 & 72.9 & 76.4 & 89.3 & 74.8 \\
+X-0 & 14{,}459 & 64.5 & 70.9 & 77.2 & 80.8 & 93.7 & 78.1 \\
+X-0, X-1 ($X \geq 5$) & 20{,}101 & 64.0 & 71.7 & 77.5 & 81.3 & 93.9 & 78.2 \\
+X-0, X-1 ($X \geq 5$), 4-1 & 25{,}003 & 63.8 & 70.8 & 77.6 & 81.3 & 93.6 & 77.9 \\
+All non-tie & 46{,}383 & 64.7 & 72.2 & 78.3 & 82.4 & 94.3 & 78.8 \\
+Random, X-0 size & 14{,}459 & 64.0 & 71.2 & 76.8 & 80.3 & 93.8 & 77.9 \\
+\midrule
+\multicolumn{8}{l}{\emph{DINOv2}} \\
 None (zero-shot) & 0 & 59.9 & 64.5 & 68.2 & 72.4 & 84.5 & 70.8 \\
 X-0 & 14{,}459 & 63.7 & 71.4 & 76.2 & 81.0 & 93.1 & 77.7 \\
 X-0, X-1 ($X \geq 5$) & 20{,}101 & 64.8 & 72.2 & 77.3 & 80.8 & 93.4 & 78.3 \\
 X-0, X-1 ($X \geq 5$), 4-1 & 25{,}003 & 64.5 & 71.4 & 77.6 & 82.2 & 93.7 & 78.4 \\
 All non-tie & 46{,}383 & 62.9 & 71.9 & 78.9 & 82.4 & 93.5 & 78.1 \\
-\midrule
 Random, X-0 size & 14{,}459 & 63.4 & 71.1 & 74.6 & 81.2 & 91.6 & 76.9 \\
+\midrule
+\multicolumn{8}{l}{\emph{DINOv3}} \\
+None (zero-shot) & 0 & 60.7 & 67.3 & 70.9 & 73.8 & 86.0 & 72.4 \\
+X-0 & 14{,}459 & 64.3 & 73.4 & 79.1 & 82.8 & 95.1 & 79.3 \\
+X-0, X-1 ($X \geq 5$) & 20{,}101 & 64.2 & 73.3 & 79.1 & 83.3 & 95.1 & 79.3 \\
+X-0, X-1 ($X \geq 5$), 4-1 & 25{,}003 & 64.8 & 74.1 & 79.5 & 82.8 & 95.4 & 79.7 \\
+All non-tie & 46{,}383 & 65.6 & 74.3 & 80.2 & 83.4 & 95.6 & 80.2 \\
+Random, X-0 size & 14{,}459 & 63.9 & 72.5 & 78.6 & 83.1 & 94.6 & 78.9 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -141,55 +153,71 @@ DreamSim-Scratch & 79.4 & 79.7 & 77.9 & 78.4 & 78.2 \\
 \end{table}
 
 \clearpage
-\noindent{\Large\bfseries C\quad Full Cohen's $\kappa$ matrix}
+\noindent{\Large\bfseries C\quad Agreement between models}
 \applabel{C}{app:kappa}
 \vspace{1em}
 
-Cohen's $\kappa$ quantifies the agreement between two classifiers after correcting for the agreement expected by chance. We compute $\kappa$ pairwise between eleven of the twelve models in Table~\ref{tab:main} (the TNN head is omitted) on the pooled 64{,}420 non-tie test predictions (every triplet appears in exactly one fold's test split, so the pooled set is a disjoint union of the five held-out folds). Values near 1 indicate redundant models that would gain little from ensembling; values near 0.4--0.6 indicate models that make different errors and are candidates for ensembling. In Figure~\ref{fig:kappa} the three DINO zero-shot entries cluster tightly ($\kappa>0.63$), as do the five LoRA-adapted DINO variants ($\kappa>0.6$), confirming that the DINO family makes highly correlated errors. LPIPS sits further out ($\kappa=0.25\text{--}0.36$ with any DINO-family model), which is consistent with its different underlying feature basis. DreamSim-Pretrained and DreamSim-Scratch reach $\kappa=0.75$, the highest pairwise agreement in the matrix: retraining the DreamSim ensemble on NIGHTS-100k does not shift its error structure, it only shifts the overall accuracy by 2 pp. The scratch model is structurally the same predictor, trained on a cleaner subset, that fails on the same ambiguous triplets.
+We compared eleven models on the 64{,}420 NIGHTS triplets where one image received more votes than the other. The released and retrained versions of DreamSim were the closest pair in Figure~\ref{fig:kappa}. They chose the same image on 88\% of triplets. Each agreed with LPIPS on 68\%.
 
 \begin{figure}[!ht]
 \centering
-\includegraphics[width=0.55\linewidth]{figures/kappa_matrix.pdf}
-\caption{Cohen's $\kappa$ heatmap across eleven of the twelve models (TNN omitted) on NIGHTS-100k non-tie predictions ($N=64{,}420$). Each cell is the $\kappa$ between the row and column model's binary left/right predictions on the same set of triplets. Diagonal is 1 by construction. $\kappa=1$ is perfect agreement; $\kappa=0$ is chance. Two blocks stand out: the DINO-LoRA block (within-block $\kappa>0.6$), and the two DreamSim variants that agree with each other at $\kappa=0.75$ but with LPIPS at only 0.25--0.36.}
+\includegraphics[width=0.70\linewidth]{figures/kappa_matrix.pdf}
+\caption{Each square compares the choices of two models. Cohen's $\kappa$ is 1 if they always choose the same image and 0 if they agree as often as expected from how frequently each picks the left or right image. The two versions of DreamSim have $\kappa=0.75$. Among the five fine-tuned DINO models, pairwise $\kappa$ ranges from 0.58 to 0.67. The figure omits the TNN model.}
 \label{fig:kappa}
 \end{figure}
 
-\paragraph{Is $\kappa$ sufficient when labels have limited reproducibility?} One reviewer concern is that pooled $\kappa$ mixes agreement on reproducible-label triplets (X-0, ceiling 100\%) with agreement on low-reproducibility triplets (2-1, ceiling 74\%). If two models ``agree'' on a 2-1 triplet, are they agreeing on shared signal or shared noise? We address this by stratifying $\kappa$ by agreement pattern: computing $\kappa$ separately on the X-0 (unanimous), X-1 (strong, $X\geq 5$), and weak (2-1/3-1/4-1) subsets. Table~\ref{tab:kappa-strat} shows that the ranking of redundancy is preserved across all strata, with magnitudes declining in the expected way on weak-majority triplets where label noise is higher.
+When voters were unanimous, the two versions of DreamSim chose the same image 95\% of the time. When the vote was 2-1, 3-1, or 4-1, they agreed 84\% of the time. The other four model pairs in Table~\ref{tab:kappa-strat} also agreed less often when voters were divided. On a 2-1 vote, for example, the models agree with each other even if both pick the image that received just one vote.
 
 \begin{table}[!ht]
-\caption{Cohen's $\kappa$ stratified by human-agreement pattern on the pooled NIGHTS-100k non-tie predictions. The ranking of redundancy (DreamSim-Pretrained $\leftrightarrow$ DreamSim-Scratch highest, LPIPS $\leftrightarrow$ DreamSim lowest) is identical at every stratum. On the unanimous subset, where labels have 100\% reproducibility ceiling, the DreamSim-Pretrained $\leftrightarrow$ DreamSim-Scratch agreement rises to $\kappa=0.90$, the strongest piece of evidence that retraining the ensemble on NIGHTS-100k does not alter its decision surface.}
+\caption{Agreement between model pairs (Cohen's $\kappa$), grouped by how people voted. The last column also includes three triplets on which two voters chose the less popular image.}
 \label{tab:kappa-strat}
 \centering
 \small
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
-Pair & Unanimous X-0 & Strong X-1 & Weak (2-1/3-1/4-1) & Pooled \\
-     & $(N=20{,}005)$ & $(N=7{,}922)$ & $(N=36{,}476)$ & $(N=64{,}420)$ \\
+Model pair & Unanimous & 5-1 to 9-1 & 2-1 to 4-1 & All triplets \\
+ & $N=20{,}019$ & $N=7{,}922$ & $N=36{,}476$ & $N=64{,}420$ \\
 \midrule
-DreamSim-Pretrained $\leftrightarrow$ DreamSim-Scratch & 0.90 & 0.76 & 0.68 & 0.75 \\
-DreamSim-Pretrained $\leftrightarrow$ DINOv3-LoRA-Cog & 0.89 & 0.69 & 0.58 & 0.69 \\
-DINOv2-LoRA-Cos $\leftrightarrow$ DINOv3-LoRA-Cog    & 0.85 & 0.64 & 0.55 & 0.67 \\
-DINOv3-ZS $\leftrightarrow$ DreamSim-Pretrained         & 0.72 & 0.52 & 0.44 & 0.54 \\
-LPIPS $\leftrightarrow$ DreamSim-Pretrained              & 0.52 & 0.34 & 0.27 & 0.30 \\
+DreamSim-Pretrained and DreamSim-Scratch & 0.89 & 0.76 & 0.68 & 0.75 \\
+DreamSim-Pretrained and DINOv3-LoRA-Cog & 0.89 & 0.69 & 0.58 & 0.69 \\
+DINOv2-LoRA-Cos and DINOv3-LoRA-Cog & 0.85 & 0.64 & 0.55 & 0.65 \\
+DINOv3-ZS and DreamSim-Pretrained & 0.72 & 0.52 & 0.44 & 0.54 \\
+LPIPS and DreamSim-Pretrained & 0.52 & 0.34 & 0.27 & 0.36 \\
 \bottomrule
 \end{tabular}}
 \end{table}
-
-The pooled $\kappa$ in Figure~\ref{fig:kappa} and in the main body is therefore a weighted average over agreement patterns with different label reliability. The stratified view shows two things: first, the redundancy claim (DreamSim variants and DINO-LoRA pairs are structurally similar classifiers, LPIPS is independent) holds on the subset where labels are authoritative; second, the lower $\kappa$ magnitudes on weak-majority patterns partly reflect the reduced maximum $\kappa$ achievable when classifier outputs are compared against noisy labels. Both observations are consistent with the \S\ref{sec:ceiling} reproducibility-ceiling analysis: on weak-majority triplets there is less reproducible signal for any classifier (or pair of classifiers) to latch onto.
 
 \clearpage
 \noindent{\Large\bfseries D\quad Additional experiments}
 \applabel{D}{app:extra}
 \vspace{1em}
 
-This section documents experiments that did not make Table~\ref{tab:main} but took substantial compute: alternative similarity heads on frozen DINOv3 CLS embeddings, a multi-teacher distillation backbone (C-RADIOv4), a vision-language-model-as-judge (Qwen3-VL), ClickMe attention harmonization, and qualitative traces that make the agreement-stratified story visible on individual triplets. The BAPPS ceiling is reported in the main body (\S\ref{sec:bapps}).
+Figure~\ref{fig:extra_controls} compares two additional backbones with the appropriate baselines. We also test whether changing the distance function helps with frozen features (Table~\ref{tab:head-sweep}) or whether a closer color match accounts for the ensemble's training gain (Figure~\ref{fig:ingredients}).
+
+\begin{figure}[!htbp]
+\centering\small
+\begin{tabular}{llrl}
+\toprule
+Evaluation & Configuration & Accuracy (\%) & 55--85\%\\
+\midrule
+Five-fold mean & Frozen DINOv3 & \pointvalue{72.0}\\
+ & DINOv3 with ClickMe attention alignment & \pointvalue{64.0}\\
+\midrule
+One test fold & Frozen DINOv3 & \pointvalue{72.4}\\
+ & LPIPS & \pointvalue{65.4}\\
+ & C-RADIOv4 after one training epoch & \pointvalue{58.2}\\
+\bottomrule
+\end{tabular}
+\caption{Two supplementary tests of the frozen-feature baseline. The upper comparison uses identical folds. The lower comparison shows the one C-RADIOv4 run alongside two baselines evaluated on that fold (Table~\ref{tab:perfold}).}
+\label{fig:extra_controls}
+\end{figure}
 
 \subsection*{D.0\quad Harmonized DINOv3 (attention alignment on ClickMe)}
 
-\citet{fel2022harmonization} propose training a vision backbone to match human attention maps collected via ClickMe~\citep{linsley2019clickme}. The hypothesis is that attention-aligned features yield similarity-aligned embeddings. We tested this on DINOv3 with the authors' pretrained ClickMe attention predictor: 5-fold CV on NIGHTS-100k non-tie (matched splits to Table~\ref{tab:main}) gives Harmonized-DINOv3 $= 64.0 \pm 0.2\%$, an 8 pp drop from DINOv3 zero-shot on the same folds (Table~\ref{tab:harm}). The near-zero across-fold variance indicates the drop is not noise.
+\citet{fel2022harmonization} propose training a vision backbone to match human attention maps collected via ClickMe~\citep{linsley2019clickme}. The hypothesis is that attention-aligned features yield similarity-aligned embeddings. We tested this on DINOv3 with the authors' pretrained ClickMe attention predictor: 5-fold CV on NIGHTS-100k non-tie (matched splits to Table~\ref{tab:main}) gives Harmonized-DINOv3 $= 64.0 \pm 0.2\%$, an 8 pp drop from DINOv3 zero-shot on the same folds (Table~\ref{tab:harm}). The drop relative to frozen DINOv3 is visible on each of the five folds (Figure~\ref{fig:extra_controls}, Table~\ref{tab:harm}).
 
-The interpretation in the Discussion is the level-of-abstraction mismatch: ClickMe captures where humans look during categorization, not which compositional features drive perceived ensemble-image similarity. The result is consistent with attention-alignment being a useful signal for LPIPS-style pixel-distortion metrics but not for the mid/high-level discrimination NIGHTS requires.
+ClickMe records where people look during categorization, whereas NIGHTS asks which of two whole images looks more similar (Figure~\ref{fig:voting_examples}). Training on those attention targets did not transfer to the NIGHTS choices in this comparison.
 
 \begin{table}[ht]
 \caption{Harmonized DINOv3 on NIGHTS-100k, 5-fold CV. Zero-shot DINOv3 reproduced from Table~\ref{tab:main} for direct comparison on the same test splits.}
@@ -208,7 +236,7 @@ Harmonized DINOv3            & 63.8 & 64.1 & 63.9 & 64.4 & 63.9 & $64.0 \pm 0.2$
 
 \subsection*{D.1\quad Alternative similarity heads on frozen CLS}
 
-The main body establishes that cosine distance on DINO CLS tokens is the strongest zero-shot signal on NIGHTS-100k. A natural follow-up question is whether any other similarity function on the same frozen embedding improves that number. We swept ten alternatives spanning basic distances, kernel methods, non-Euclidean geometries, distribution-based interpretations, and learned metric-learning heads, all evaluated on the same 5-fold cross-validation on NIGHTS-100k non-tie (Table~\ref{tab:head-sweep}).
+Figure~\ref{fig:ingredients} compares heads on adapted backbones. Here we keep every DINOv3 embedding fixed. A natural follow-up question is whether any other similarity function on the same frozen embedding improves that number. We swept ten alternatives spanning basic distances, kernel methods, non-Euclidean geometries, distribution-based interpretations, and learned metric-learning heads, all evaluated on the same 5-fold cross-validation on NIGHTS-100k non-tie (Table~\ref{tab:head-sweep}).
 
 \begin{table}[!ht]
 \caption{Alternative similarity heads on frozen DINOv3 CLS embeddings, 5-fold CV on NIGHTS-100k non-tie ($N=64{,}420$). Cosine is the baseline from Table~\ref{tab:main}. ``Learned'' heads are trained with pairwise BCE for 10 epochs; all other heads are parameter-free. No alternative beats plain cosine by more than 0.1 pp, within fold-to-fold s.d.; learned heads with more parameters do systematically worse. Retrieval-style losses did not help either (cosine-softmax-ranking and margin-triplet variants of cosine all remained within 0.1 pp of plain cosine on a fold-0 pilot).}
@@ -235,61 +263,22 @@ Siamese MLP on $[a, b, |a{-}b|, a{\odot}b]$ & learned similarity    & $\sim$800k
 \end{tabular}
 \end{table}
 
-Cosine, neg-dot, arc-cosine, and Poincar\'e differ by at most 0.1 pp, less than the fold-to-fold standard deviation. L2, L1, and JSD trail cosine by $\sim$0.5--0.7 pp. Adding parameters makes performance worse: a Mahalanobis metric with 24{,}576 extra parameters loses 1.7 pp, while an 800k-parameter Siamese MLP loses 3.6 pp despite access to both embeddings. The learned heads appear to fit fold-specific label noise (\S\ref{sec:ceiling}) rather than learn a better metric. On frozen DINO CLS embeddings, no tested head beats cosine by more than 0.1 pp, and all learned heads perform worse.
+Cosine, neg-dot, arc-cosine, and Poincar\'e differ by at most 0.1 pp, less than the fold-to-fold standard deviation. L2, L1, and JSD trail cosine by $\sim$0.5--0.7 pp. Adding parameters makes performance worse: a Mahalanobis metric with 24{,}576 extra parameters loses 1.7 pp, while an 800k-parameter Siamese MLP loses 3.6 pp despite access to both embeddings. This complements the fixed-adapter comparison in Figure~\ref{fig:ingredients}. The best alternative on frozen features exceeds cosine by 0.10 points, while each learned head falls below it.
 
 \subsection*{D.2\quad Multi-teacher distillation (negative result)}
 
-C-RADIOv4-SO400M~\citep{conwell2024large} distills DINOv3, SigLIP2, and SAM3 into a single ViT. We hypothesized that a model with stronger semantic, linguistic, and segmentation priors would produce better perceptual similarity. We applied rank-8 LoRA to qkv/proj and a cosine head on the summary token and trained for one epoch on fold 0 (approximately 28 hours at the model's required 1008$\times$1008 input resolution for its RoPE embeddings).
+We also tested C-RADIOv4-SO400M to ask whether a distilled backbone could improve on frozen DINO (Figure~\ref{fig:extra_controls}). We trained rank-8 adapters on its query, key, value and projection weights with a cosine head on the summary token. One epoch on the first fold at $1008\times1008$ resolution took about 28 hours.
 
-Epoch-1 test accuracy on fold 0 was 58.2\%, below every DINO backbone in Table~\ref{tab:main} by 13 pp or more, and below LPIPS by 7 pp. We stopped after one epoch. The model's pretraining objectives mix spatial, semantic, and linguistic signals that appear to dilute the fine-grained synthetic-image similarity signal NIGHTS requires. Training at 224$\times$224 is not possible without retraining the RoPE embeddings, and the full-resolution compute cost makes multi-fold cross-validation impractical for this backbone at our compute budget.
-
-\subsection*{D.3\quad VLM-as-judge (negative result)}
-
-Modern vision-language models can describe image content at the scene level. We tested whether a VLM can directly answer the 2AFC question. Using Qwen3-VL-4B-Instruct on a 100-triplet sample from fold 0, we constructed a prompt showing the reference and two candidates with randomized A/B order, and extracted the logit ratio of the A vs.\ B tokens at the first generated position. We applied position randomization to remove A/B bias.
-
-\begin{table}[!ht]
-\caption{Qwen3-VL-4B-Instruct on a 100-triplet sample of NIGHTS-100k fold 0. The stratified rows in the submitted version were incorrect and are corrected here.}
-\label{tab:qwen}
-\centering
-\small
-\begin{tabular}{lcc}
-\toprule
-Triplet subset & N & Accuracy \\
-\midrule
-Unanimous (X-0)            & 26 & 69.2\% \\
-Strong-majority (X-1, $X{\geq}5$) & 13 & 84.6\% \\
-Weak-majority (2-1/3-1/4-1) & 61 & 55.7\% \\
-\midrule
-All                        & 100 & 63.0\% (Wilson 95\% CI 53.2--71.8) \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Qwen3-VL reaches 63.0\% overall, below LPIPS and every zero-shot backbone in Table~\ref{tab:backbones}. On unanimous triplets it reaches 69.2\%, while every zero-shot backbone exceeds 75\%, and it is near chance on weak-majority triplets. Each agreement stratum has only 13 to 61 triplets, so only the overall figure should be read quantitatively. The model can reason about scene content but does poorly on the fine-grained similarity judgments NIGHTS asks for.
+After one epoch C-RADIOv4 reached 58.2\%, compared with 65.4\% for LPIPS on the same test fold (Figure~\ref{fig:extra_controls}). We stopped there. This comparison describes that checkpoint and leaves open what longer training would do.
 
 \clearpage
-\noindent{\Large\bfseries D.4\quad Model confidence versus the human vote split}
-\applabel{D.4}{app:confidence}
+\noindent{\Large\bfseries D.3\quad Model confidence versus the human vote split}
+\applabel{D.3}{app:confidence}
 \vspace{1em}
 
-The headline result is in \S\ref{sec:confidence}. We map each model's score to a probability $P(\text{left})$ with out-of-fold Platt scaling (fit on four folds, applied to the fifth), define model confidence as $2|P-0.5|$, and compare it to the confidence the human vote supports, $2|v-0.5|$ for left-vote fraction $v$; the 35{,}580 tied triplets never enter the fit. Expected calibration error (ECE) is reported against both the binarized majority label and the human vote fraction. Figure~\ref{fig:confcal} reports the full picture: confidence by agreement pattern against the confidence the votes themselves support, a reliability curve of calibrated $P(\text{left})$ against the observed vote fraction, and mean confidence on the 35{,}580 split-vote triplets. Figure~\ref{fig:confcum} repeats the measurement cumulatively, starting from the published 20k and relaxing the agreement filter one vote pattern at a time out to the full 100k. The confidence the votes support falls from 1.000 to 0.414 across that sweep; DreamSim-Pretrained falls from 0.790 to 0.563, and the two curves cross near 70{,}000 triplets.
+For the frozen models and the released DreamSim checkpoint in Figure~\ref{fig:confidence}, we map the score to a probability $P(\text{left})$ with out-of-fold Platt scaling (fit on four folds, applied to the fifth), define model confidence as $2|P-0.5|$, and compare it to the confidence the human vote supports, $2|v-0.5|$ for left-vote fraction $v$; the 35{,}580 tied triplets never enter the fit. Expected calibration error (ECE) is reported against both the binarized majority label and the human vote fraction. Figure~\ref{fig:confcal} reports the full picture: confidence by agreement pattern against the confidence the votes themselves support, a reliability curve of calibrated $P(\text{left})$ against the observed vote fraction, and mean confidence on the 35{,}580 split-vote triplets. Figure~\ref{fig:confcum} repeats the measurement cumulatively, starting from the published 20k and relaxing the agreement filter one vote pattern at a time out to the full 100k. The confidence the votes support falls from 1.000 to 0.414 across that sweep; DreamSim-Pretrained falls from 0.790 to 0.563, and the two curves cross near 70{,}000 triplets.
 
-\begin{table}[ht]
-\caption{Mean model confidence $2|P(\text{left})-0.5|$ by agreement pattern after out-of-fold Platt scaling, against the confidence the vote split supports. X-0 pools the 2-0 to 10-0 patterns (the one 1-0 and two 11-0 triplets are excluded).}
-\label{tab:confidence}
-\centering
-\small
-\begin{tabular}{lrcccc}
-\toprule
-Agreement & $N$ & Vote-supported & DreamSim-Pretrained & DINOv1-ZS & LPIPS \\
-\midrule
-50/50 (tie) & 35{,}580 & 0.000 & 0.484 & 0.383 & 0.251 \\
-2-1         & 18{,}454 & 0.333 & 0.492 & 0.386 & 0.250 \\
-4-1         & 6{,}841  & 0.600 & 0.544 & 0.412 & 0.260 \\
-X-0         & 20{,}016 & 1.000 & 0.790 & 0.580 & 0.324 \\
-\bottomrule
-\end{tabular}
-\end{table}
+Figure~\ref{fig:confidence} gives the mean confidence by vote pattern; X-0 there pools the 2-0 to 10-0 patterns (the one 1-0 and two 11-0 triplets are excluded).
 
 \begin{figure}[ht]
 \centering
@@ -306,11 +295,11 @@ X-0         & 20{,}016 & 1.000 & 0.790 & 0.580 & 0.324 \\
 \end{figure}
 
 \clearpage
-\noindent{\Large\bfseries D.5\quad Per-axis stimulus manipulation results}
-\applabel{D.5}{app:axes_detail}
+\noindent{\Large\bfseries D.4\quad Per-axis stimulus manipulation results}
+\applabel{D.4}{app:axes_detail}
 \vspace{1em}
 
-These are the per-axis results of the Figure-6-style replica described in \S\ref{sec:shape_axes}. We report them here, and not in the main body, because NIGHTS provides no human judgments on manipulated stimuli, and we collected none: the orientation, color, shading and blur axes therefore measure model invariance only and cannot be set against human behavior. The foreground/background axis is treated separately in the main text, where IN-9 and ObjectNet supply an external anchor.
+Figure~\ref{fig:fig6_replica} gives the original eleven-manipulation comparison, including the released DreamSim checkpoint. Its triplets overlap training for some models. Table~\ref{tab:manip} gives the separate four-manipulation comparison on held-out images for all three DINO backbones, illustrated in Figure~\ref{fig:centre_mask}. Accuracy is always measured against the votes on the original images.
 
 \begin{figure}[ht]
 \centering
@@ -320,35 +309,33 @@ These are the per-axis results of the Figure-6-style replica described in \S\ref
 \end{figure}
 
 \begin{enumerate}[leftmargin=*,itemsep=1pt,topsep=1pt]
-\item \textbf{DINOv3 was the most invariant zero-shot backbone} on every axis except background removal. Rotation drop was $\leq 0.7$ pp, grayscale drop was only 0.3 pp, mild blur actually \emph{helped} (+1.25 pp at $\sigma=4$), and the foreground-only drop was 1.1 pp. Its clean accuracy of 85.4\% was below DINOv1's 88.5\% and DreamSim-Pretrained's 93.8\%, but its accuracy changed less under the tested manipulations.
-\item \textbf{DreamSim-Pretrained traded invariance for clean-image accuracy.} It had the best clean score in the table ($93.8\%$) but the worst or near-worst drop on rotation ($-4.3$), color ($-5.7$), heavy blur ($-9.6$), foreground ($-9.05$), and background ($-14.5$). Margin-hinge LoRA training narrows the feature geometry around the triplet distribution, which produces the best in-distribution score at the cost of cross-manipulation stability.
+\item \textbf{Frozen DINOv3 had the smallest mean absolute change} across the eleven alterations (Figure~\ref{fig:fig6_replica}). Rotation drop was $\leq 0.7$ pp, grayscale drop was only 0.3 pp, mild blur actually \emph{helped} (+1.25 pp at $\sigma=4$), and the foreground-only drop was 1.1 pp. Its clean accuracy of 85.4\% was below DINOv1's 88.5\% and DreamSim-Pretrained's 93.8\%, but its accuracy changed less under the tested manipulations.
+\item \textbf{DreamSim-Pretrained traded invariance for clean-image accuracy.} It had the best clean score in the table ($93.8\%$) but the worst or near-worst drop on rotation ($-4.3$), color ($-5.7$), heavy blur ($-9.6$), foreground ($-9.05$), and background ($-14.5$). Figure~\ref{fig:fig6_replica} shows the differences by alteration. The center and surround masks have their largest effects on the recurrent ResNet-50.
 \end{enumerate}
 
-Both observations are statements about models. Neither supports a claim about the difference between model error and human error on these stimuli, and the revision no longer makes one.
-
 \begin{table}[!ht]
-\caption{Zero-shot DINOv2 with cosine on NIGHTS-100k (5-fold mean $\pm$ s.d.). Accuracy falls monotonically with size. The 70.1\% reference is the split-half agreement of the NIGHTS votes, the probability that the two halves of a triplet's votes choose the same majority; it is a conservative companion to the $\approx$89\% fresh-panel ceiling of \S\ref{sec:ceiling}.}
+\caption{Zero-shot DINOv2 with cosine on NIGHTS-100k (5-fold mean $\pm$ s.d.). Accuracy falls as the model grows.}
 \label{tab:scale}
 \centering
 \small
-\begin{tabular}{lcccc}
+\begin{tabular}{lccc}
 \toprule
-DINOv2 & Params & NIGHTS-100k & vs.\ 70.1\% & Unanimous X-0 \\
+DINOv2 & Params & NIGHTS-100k & Unanimous X-0 \\
 \midrule
-ViT-S/14 & 21M  & $72.2 \pm 0.5$ & $+2.1$ & 85.8 \\
-ViT-B/14 & 86M  & $70.6 \pm 0.4$ & $+0.5$ & 83.9 \\
-ViT-L/14 & 300M & $69.0 \pm 0.2$ & $-1.1$ & 81.8 \\
-ViT-g/14 & 1.1B & $68.4 \pm 0.3$ & $-1.7$ & 80.5 \\
+ViT-S/14 & 21M  & $72.2 \pm 0.5$ & 85.8 \\
+ViT-B/14 & 86M  & $70.6 \pm 0.4$ & 83.9 \\
+ViT-L/14 & 300M & $69.0 \pm 0.2$ & 81.8 \\
+ViT-g/14 & 1.1B & $68.4 \pm 0.3$ & 80.5 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \clearpage
-\noindent{\Large\bfseries D.6\quad Zero-shot backbone sweep}
-\applabel{D.6}{app:backbones}
+\noindent{\Large\bfseries D.5\quad Zero-shot backbone sweep}
+\applabel{D.5}{app:backbones}
 \vspace{1em}
 
-Every backbone below is evaluated with plain cosine on the post-norm CLS (or pooled) embedding at 224$\times$224, with no training, on the same five folds as Table~\ref{tab:main}. The DINOv2 size sweep is repeated in Table~\ref{tab:scale}.
+To extend the size comparison in Figure~\ref{fig:ingredients}, we evaluated each backbone below with plain cosine on the post-norm CLS (or pooled) embedding at 224$\times$224, with no training, on the same five folds as Table~\ref{tab:main}. The DINOv2 size sweep is repeated in Table~\ref{tab:scale}.
 
 \begin{table}[ht]
 \caption{Zero-shot cosine accuracy on NIGHTS-100k non-tie (5-fold mean $\pm$ s.d., $N=64{,}420$) and on the unanimous X-0 subset.}
@@ -382,195 +369,107 @@ DreamSim ensemble, untrained & DINO+CLIP+OpenCLIP & $74.5 \pm 0.4$ & 89.2 \\
 \end{tabular}
 \end{table}
 
-\noindent{\Large\bfseries D.7\quad Color control for the fine-tuning gain}
-\applabel{D.7}{app:colorcontrol}
+\noindent{\Large\bfseries D.6\quad Color control for the fine-tuning gain}
+\applabel{D.6}{app:colorcontrol}
 \vspace{1em}
 
-To test whether the 4.2 pp that training adds over the untrained DreamSim ensemble (\S\ref{sec:gain}) comes from low-level color, we computed for every one of the 64{,}420 non-tie triplets the $\chi^2$ distance between the RGB histograms of each candidate and the reference, and split the triplets by whether that gap favors the human-majority candidate. The training gain was $+3.9$ pp where color could not discriminate and $+4.9$ pp where it could (95\% CI $\pm 0.7$ pp), so the gain is nearly flat across the split. A logistic regression on twelve pixel statistics alone reached 62.3\%, below every zero-shot backbone in Table~\ref{tab:backbones}.
+To test whether the 4.2 pp that training adds over the untrained DreamSim ensemble (Figure~\ref{fig:ingredients}) comes from low-level color, we computed for every one of the 64{,}420 non-tie triplets the $\chi^2$ distance between the RGB histograms of each candidate and the reference, and split the triplets by whether that gap favors the human-majority candidate. The training gain was $+3.9$ pp where the closer histogram belonged to the rejected candidate and $+4.9$ pp where it belonged to the chosen candidate (95\% CI $\pm 0.7$ pp), so the gain is nearly flat across the split. A logistic regression on twelve pixel statistics alone reached 62.3\%, below every zero-shot backbone in Table~\ref{tab:backbones}.
 
 \clearpage
 \noindent{\Large\bfseries E\quad Training details}
 \applabel{E}{app:training}
 \vspace{1em}
 
-This section documents the full training recipe for reproducibility. All trained models in Table~\ref{tab:main} use the same pipeline except where explicitly noted; DreamSim-Scratch uses the authors' published training code verbatim and is documented separately at the end.
+Figure~\ref{fig:recipe} shows where the main model comparison and the unanimous-only experiment differ in training data and checkpoint selection. The following settings reproduce these runs.
 
-\paragraph{Preprocessing.} Images are decoded from the NIGHTS release JPEGs, resized to $224\times 224$ with bicubic interpolation, and center-cropped. Normalization follows the backbone: ImageNet statistics (mean $[0.485, 0.456, 0.406]$, std $[0.229, 0.224, 0.225]$) for DINOv1, DINOv2, and DINOv3; $0.5/0.5$ for C-RADIOv4; the processor-supplied normalization for DreamSim and Qwen3-VL. No data augmentation is used at training time: the triplet task is orientation-sensitive, and the reference/candidate pairing is the supervision signal.
-
-\paragraph{LoRA configuration.} LoRA adapters have rank 8, $\alpha = 16$, and dropout 0.05, and are inserted on the \texttt{qkv} and \texttt{proj} linear layers of every transformer block. The backbone's final LayerNorm is also unfrozen. For DINOv2 ViT-B/14 with 12 blocks this yields 442{,}368 LoRA parameters plus 1{,}536 LayerNorm parameters, which is approximately 0.5\% of the 86M backbone. The DreamSim ensemble retraining uses rank 16 on the same modules to match the authors' released configuration.
-
-\paragraph{Heads.} Zero-shot models use cosine distance on the post-norm CLS token at $224\times224$ input. The Cog head has 197k parameters: frozen cosine alignment, GCM context, and Tversky contrast with learnable $\alpha, \beta$. The Tversky Neural Network of \citet{doumbouya2025tversky} is matched at 197k parameters, with product intersection and subtract-match difference functions and 256 features.
-
-\paragraph{Optimizer.} Schedule-Free AdamW \citep{defazio2024schedulefree} with $\beta_1 = 0.9$, $\beta_2 = 0.999$, weight decay $10^{-2}$, 100 linear warm-up steps, and a constant learning rate thereafter (no cosine schedule). Separate learning rates are used: $10^{-4}$ for LoRA and layer-norm parameters, $2\times 10^{-4}$ for the head. Gradients are clipped to a global norm of 1.0 before each optimizer step.
-
-\paragraph{Batch and compute.} Batch size is 32 triplets per step (each triplet contributes three images to the forward pass). Training runs for 10 epochs over the fold's training split with batch size 32. Compute is a shared cluster of NVIDIA RTX A6000 GPUs (48\,GB). A full 5-fold run of DINOv2-LoRA-Cog takes approximately 3--5 hours when five GPUs run concurrently, one per fold.
-
-\paragraph{Checkpoint selection.} A held-out validation split of 10\% of each fold's training data selects the best-of-10-epochs checkpoint by validation accuracy; the selected checkpoint is evaluated once on the fold's test split, and that single number appears in Table~\ref{tab:perfold}. Per-triplet test-set predictions are persisted for every (model, fold) pair so that the Cohen's $\kappa$ matrix, McNemar tests, and error-distribution analyses can be reproduced without re-running training.
-
-\paragraph{DreamSim retraining from scratch.} We run the authors' published training code unchanged with the released ensemble configuration: DINO+CLIP+OpenCLIP, rank-16 LoRA, margin-0.05 hinge loss, batch size 16, 6 epochs. The release filters training triplets to those with at least 6 votes, so the scratch model sees only strong-majority triplets during training; we evaluate on the same full non-tie test fold as every other model in Table~\ref{tab:main}. This mismatch is the point of the comparison, not an oversight: it isolates what the authors' training recipe would produce when the 100k distribution is available.
-
-\clearpage
-\noindent{\Large\bfseries F\quad Shape-only class separability and retrieval}
-\applabel{F}{app:shape_only}
-\vspace{1em}
-
-\begin{table}[ht]
-\caption{Shape-only class separability. Leave-one-out nearest-prototype accuracy on the Geirhos filled-silhouette and edge stimuli. Chance is 6.25\% (16 classes). Referenced from \S\ref{sec:shape_axes}.}
-\label{tab:shape_only}
-\centering
-\small
-\begin{tabular}{lcccc}
+\begin{figure}[!htbp]
+\centering\footnotesize
+\begin{tabular}{@{}p{.16\linewidth}p{.38\linewidth}p{.37\linewidth}@{}}
 \toprule
-Backbone & Silh 1-NN & Silh proto & Edges 1-NN & Edges proto \\
+Stage & DINO adapters & DreamSim retraining\\
 \midrule
-ResNet-50        & 77.5 & 81.3 & 63.1 & 67.5 \\
-DINOv1           & 71.3 & 78.1 & 66.3 & 68.1 \\
-CLIP-ViT-B/16    & 73.1 & 78.8 & 79.4 & 81.3 \\
-DINOv2           & 81.3 & 86.3 & 71.3 & 80.0 \\
-DINOv3           & 82.5 & 87.5 & 86.9 & 91.3 \\
-ConvNeXt-Large   & 84.4 & 87.5 & 90.0 & 93.8 \\
+Input $\downarrow$ & $224\times224$ images, normalized for DINO & Released processor and normalization\\
+Features $\downarrow$ & One backbone, rank-8 adapters & Three backbones, rank-16 adapters\\
+Comparison $\downarrow$ & Cosine or learned similarity head & Released ensemble and margin loss\\
+Fit $\downarrow$ & Schedule-Free AdamW, 32 triplets per step, up to ten epochs in the five-fold runs & Published optimizer recipe, 16 triplets per step, six epochs, at least six votes per triplet\\
+Evaluate & Highest test epoch for the main LoRA comparison. Separate validation set for the training-set experiment. & Retrain the ensemble on each fold and evaluate on that fold's test triplets.\\
 \bottomrule
 \end{tabular}
-\end{table}
-
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\linewidth]{figures/silhouette_retrieval.png}
-\caption{Shape-only nearest-neighbor retrieval. For four query silhouettes (bicycle, cat, elephant, keyboard), each backbone's top-3 nearest silhouettes by cosine distance in CLS space. Green outline: match; red: mismatch. Every backbone, including ResNet-50 with its near-zero cue-conflict shape-bias, retrieves predominantly within-class; shape representation is present in every backbone we tested.}
-\label{fig:silh_retrieval}
+\caption{From image triplets to held-out predictions. Frozen features use the comparison step without fitting to NIGHTS. The main LoRA comparison selected epochs using test accuracy, which can favor its scores.}
+\label{fig:recipe}
 \end{figure}
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.8\linewidth]{figures/cost_of_accuracy.pdf}
-\caption{The cost of clean-image accuracy. Each point is a backbone; vertical axis is the mean magnitude of accuracy drop across the 11 Fig-6 ablation conditions. Zero-shot backbones (circles) cluster in the low-fragility region; LoRA-trained models and DreamSim-Pretrained (diamonds) shift up and right. Dashed line is a least-squares trend.}
-\label{fig:cost_acc}
-\end{figure}
+\paragraph{Preprocessing.} For both paths in Figure~\ref{fig:recipe}, we decode the NIGHTS JPEGs, resize them to $224\times 224$ with bicubic interpolation, and crop the center. Normalization follows the backbone: ImageNet statistics (mean $[0.485, 0.456, 0.406]$, std $[0.229, 0.224, 0.225]$) for DINOv1, DINOv2, and DINOv3; $0.5/0.5$ for C-RADIOv4; the processor-supplied normalization for DreamSim. No data augmentation is used at training time: the triplet task is orientation-sensitive, and the reference/candidate pairing is the supervision signal.
 
-\paragraph{Tie-based bias audit.} On the 7,116-triplet tie subset held out per fold, LoRA-trained models predict left with frequency 49.5--51.1\% (no positional bias). Zero-shot DINOs show 49.6--50.8\% and DreamSim 51\%, also near chance. The one model with tie bias outside that range is Qwen3-VL-4B (55\% left, confidence 0.30), consistent with known VLM positional preferences. LoRA adaptation on NIGHTS-100k does not induce spurious tie preferences.
+\paragraph{Adapters and similarity heads.} LoRA adapters have rank 8, $\alpha = 16$, and dropout 0.05, and are inserted on the \texttt{qkv} and \texttt{proj} linear layers of every transformer block. The backbone's final LayerNorm is also unfrozen. For DINOv2 ViT-B/14 with 12 blocks this yields 442{,}368 LoRA parameters plus 1{,}536 LayerNorm parameters, which is approximately 0.5\% of the 86M backbone. The DreamSim path uses rank 16 on the same modules, as in the released configuration. Figure~\ref{fig:ingredients} compares plain cosine with the learned heads. Zero-shot DINO uses cosine distance on the post-norm CLS token at $224\times224$ input. The Cog head has 197k parameters and combines cosine distance with two further learned distance terms. The second learned head (TNN) has the same number of parameters.
+
+\paragraph{Optimizer and compute.} For the DINO path in Figure~\ref{fig:recipe} we used Schedule-Free AdamW \citep{defazio2024schedulefree} with $\beta_1 = 0.9$, $\beta_2 = 0.999$, weight decay $10^{-2}$, 100 linear warm-up steps, and a constant learning rate thereafter (no cosine schedule). Separate learning rates are used: $10^{-4}$ for LoRA and layer-norm parameters, $2\times 10^{-4}$ for the head. Gradients are clipped to a global norm of 1.0 before each optimizer step. Each step uses 32 triplets, with three images per triplet. The main five-fold runs train for ten epochs. Compute is a shared cluster of NVIDIA RTX A6000 GPUs (48\,GB). A full 5-fold run of DINOv2-LoRA-Cog takes approximately 3--5 hours when five GPUs run concurrently, one per fold.
+
+\paragraph{Checkpoint selection.} For the main DINO comparison in Figure~\ref{fig:ingredients}, we train on the fold's full training split, and we keep the epoch with the highest accuracy on the fold's test split; that number appears in Table~\ref{tab:perfold}. Selecting the epoch on the test split favors the LoRA models slightly. The training-tier ladder (Table~\ref{tab:ladder}) instead selects the epoch on a validation set taken from the training split. Per-triplet test-set predictions are persisted for every (model, fold) pair so that the Cohen's $\kappa$ matrix, McNemar tests, and error-distribution analyses can be reproduced without re-running training.
+
+\paragraph{DreamSim retraining from scratch.} We use the published training code for the ensemble path in Figure~\ref{fig:recipe}, with the released configuration of DINO+CLIP+OpenCLIP, rank-16 LoRA, margin-0.05 hinge loss, batch size 16, 6 epochs. The release filters training triplets to those with at least six votes; we evaluate on the same full non-tie test fold as every other model in Table~\ref{tab:main}. This estimates how the published recipe performs when applied to the full NIGHTS collection.
 
 \clearpage
-\noindent{\Large\bfseries G\quad Full 2AFC-vs-JND axis table}
-\applabel{G}{app:axes}
+\noindent{\Large\bfseries F\quad Forced-choice accuracy and the same/different score for every model}
+\applabel{F}{app:axes}
 \vspace{1em}
 
+Figure~\ref{fig:jnd_2afc_tier}b compares the two scores directly. A higher forced-choice score does not consistently predict a higher same/different score among frozen models. Accuracy spans 13 points, from 80.6\% for CLIP to 93.8\% for the released DreamSim. The two models trained on NIGHTS are at the top, and among frozen models the self-supervised DINOv1 is the most accurate single backbone, ahead of the supervised and image-text models. The same/different score (JND AUC) spans much less, 0.63 to 0.73, and one AUC is uncertain by about $\pm 0.04$. Among the fourteen frozen models the two orderings are only weakly related (Spearman $\rho = 0.37$, $p = 0.19$): DINOv1 is fourth in accuracy but eighth on JND, while OpenCLIP is thirteenth in accuracy and fourth on JND.
+
 \begin{table}[ht]
-\caption{Per-backbone 2AFC accuracy (Fig-6 clean, 2000 unanimous triplets) and JND AUC (1{,}216 reference--candidate pairs from 608 triplets, same/different). Extended form of Figure~\ref{fig:tasks_decouple}. Among the zero-shot backbones the two rankings are only weakly related (Spearman $\rho = 0.37$, $p = 0.19$); the two models trained on NIGHTS 2AFC lead on both. A single AUC carries a 95\% bootstrap interval of about $\pm 0.04$.}
+\caption{Forced-choice (2AFC) accuracy on 2{,}000 unanimous triplets and JND AUC on the 1{,}216 reference--candidate pairs of the 608 JND triplets, for sixteen models ordered by 2AFC accuracy. Figure~\ref{fig:tasks_decouple} plots the same numbers.}
 \label{tab:axes}
 \centering
 \small
 \begin{tabular}{lccl}
 \toprule
-Backbone & 2AFC acc (\%) & JND AUC & Family \\
+Model & 2AFC accuracy (\%) & JND AUC & Kind \\
 \midrule
-DINOv1              & 88.45 & 0.674 & DINO self-distill \\
-DINOv2              & 84.65 & 0.677 & DINO self-distill \\
-DINOv3              & 85.35 & 0.697 & DINO self-distill \\
-CLIP-ViT-B/16       & 80.60 & 0.661 & image-text \\
-OpenCLIP-ViT-B/16   & 83.95 & 0.696 & image-text \\
-ViT-B/16 & 86.90 & 0.670 & label-supervised ViT \\
-ConvNeXt-Large      & 85.40 & 0.648 & modern CNN \\
-ResNet-50           & 84.05 & 0.647 & classical CNN \\
-ResNet-152          & 83.45 & 0.653 & classical CNN \\
-BiT-M R101x3        & 83.50 & 0.634 & JFT-scale CNN \\
-CORnet-S            & 86.60 & 0.675 & biologically-inspired \\
-BagNet-33           & 84.20 & 0.651 & biologically-inspired \\
-VOneResNet50        & 85.55 & 0.674 & biologically-inspired \\
-DreamSim-ZS     & 89.00 & 0.676 & concatenated ensemble, ZS \\
-DINOv2 + LoRA       & 89.30 & 0.720 & LoRA-trained on NIGHTS \\
-DreamSim-Pretrained & 93.75 & 0.727 & LoRA-trained ensemble \\
+DreamSim (released) & 93.8 & 0.727 & trained on NIGHTS \\
+DINOv2 + LoRA & 89.3 & 0.720 & trained on NIGHTS \\
+DreamSim ensemble, untrained & 89.0 & 0.676 & ensemble of three ViTs \\
+DINOv1 & 88.5 & 0.674 & self-supervised ViT \\
+Supervised ViT-B/16 & 86.9 & 0.670 & supervised ViT \\
+CORnet-S & 86.6 & 0.675 & brain-inspired CNN \\
+VOneResNet-50 & 85.5 & 0.674 & brain-inspired CNN \\
+ConvNeXt-Large & 85.4 & 0.648 & supervised CNN \\
+DINOv3 & 85.3 & 0.697 & self-supervised ViT \\
+DINOv2 & 84.7 & 0.677 & self-supervised ViT \\
+BagNet-33 & 84.2 & 0.651 & brain-inspired CNN \\
+ResNet-50 & 84.0 & 0.647 & supervised CNN \\
+OpenCLIP ViT-B/16 & 84.0 & 0.696 & image-text ViT \\
+BiT-M R101x3 & 83.5 & 0.634 & supervised CNN \\
+ResNet-152 & 83.5 & 0.653 & supervised CNN \\
+CLIP ViT-B/16 & 80.6 & 0.661 & image-text ViT \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \clearpage
-\noindent{\Large\bfseries H\quad BAPPS-vs-NIGHTS quadrant view}
-\applabel{H}{app:crossover}
+\noindent{\Large\bfseries G\quad Further figures for \S\ref{sec:shape_axes}}
+\applabel{G}{app:shape_axes_extra}
 \vspace{1em}
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.45\linewidth]{figures/bapps_vs_nights_crossover.pdf}
-\caption{Quadrant view of Figure~\ref{fig:crossover}. Dashed lines mark the 69.0\% (BAPPS) and 70.1\% (NIGHTS) reference levels of Table~\ref{tab:bapps}. The top-right quadrant lies above both. Two models fall inside it: DreamSim-Pretrained, after supervised training on the NIGHTS-20k subset, and zero-shot DINOv1, with no training.}
-\label{fig:crossover_quadrant}
-\end{figure}
+These figures accompany the image manipulations (\S\ref{sec:shape_axes}) and the comparison of the two human tasks (\S\ref{sec:human_tasks}). Figure~\ref{fig:shape_bias_cc} asks whether the frozen backbones judge by shape or by texture. Figure~\ref{fig:hgru_sweep} shows how accuracy changes as more or less of the image is masked, including the one model that fails under any mask. Figure~\ref{fig:attn_zs_vs_lora} shows three triplets on which frozen DINOv2 agreed with every voter and the fine-tuned model does not. Figure~\ref{fig:lora_strength} follows one backbone as it is trained for longer. Figure~\ref{fig:tasks_decouple} sets accuracy on the forced-choice task against the score on the same/different (JND) task.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.72\linewidth]{figures/bapps_vs_nights_spectrum.pdf}
-\caption{Perceptual similarity is a spectrum. Each model's accuracy at low-level BAPPS (left) connects to its accuracy at mid-to-high-level NIGHTS-100k (right). Crossing lines show rank inversion across the spectrum: LPIPS is a BAPPS specialist that trails on NIGHTS; DINOv2/v3 invert the pattern. Two models score above both reference levels: DreamSim after supervised NIGHTS-20k training, and zero-shot DINOv1 with no training.}
-\label{fig:crossover}
+\includegraphics[width=\linewidth]{figures/manip_examples_appendix.pdf}
+\caption{The alterations of Table~\ref{tab:manip} on the reference images of four more held-out triplets. From left: the original, the object replaced with noise, the background replaced with noise, color removed, shading removed, and heavy blur.}
+\label{fig:manip_extra}
 \end{figure}
-
-\begin{table}[ht]
-\caption{Split-half agreement for BAPPS 2AFC validation (5 votes per triplet): the probability that the two halves of a triplet's votes choose the same majority, a conservative companion to the fresh-panel repeatability of \S\ref{sec:ceiling} (68.3\% for 3-2, 94.2\% for 4-1). The lower rows give per-category 2AFC accuracy against the binary majority label; their unweighted mean is the BAPPS column of Table~\ref{tab:bapps}.}
-\label{tab:bapps-ceiling}
-\centering
-\small
-\begin{tabular}{lcccccc}
-\toprule
-Category & CNN & Traditional & Super-res & Color & Frame-int & Deblur \\
-\midrule
-N        & 4{,}720 & 4{,}720 & 10{,}856 & 4{,}720 & 1{,}888 & 9{,}440 \\
-Ceiling  & 83.2\% & 79.1\% & 70.0\% & 64.1\% & 62.8\% & 59.6\% \\
-\midrule
-LPIPS-AlexNet           & 86.7 & 77.7 & 76.2 & 66.3 & 66.9 & 63.8 \\
-DINOv1-ZS               & 85.2 & 80.0 & 73.2 & 62.0 & 66.1 & 62.4 \\
-DINOv2-ZS               & 81.0 & 75.4 & 63.7 & 58.1 & 66.6 & 59.1 \\
-DINOv3-ZS               & 83.2 & 77.2 & 65.8 & 59.8 & 64.4 & 60.2 \\
-DreamSim-Pretrained & 86.8 & 82.0 & 75.0 & 67.7 & 67.5 & 62.6 \\
-\bottomrule
-\end{tabular}\\[3pt]
-\textbf{All BAPPS: N=36{,}344, split-half agreement = 69.0\%.}
-\end{table}
-
-\begin{table}[ht]
-\caption{Accuracy on ImageNet-prompted and non-ImageNet-prompted subsets of NIGHTS-100k non-tie. $\Delta$ is ImageNet minus non-ImageNet.}
-\label{tab:imnet}
-\centering
-\small
-\begin{tabular}{lccc}
-\toprule
-Model & ImageNet & Non-ImageNet & $\Delta$ \\
-\midrule
-LPIPS-AlexNet-Pretrained       & 64.6 & 66.1 & $-1.5$ \\
-DINOv1-ZS-CLS-cos              & 74.5 & 73.6 & $+0.9$ \\
-DINOv3-ZS-CLS-cos              & 73.0 & 70.7 & $+2.3$ \\
-DINOv2-LoRA-Cos                & 78.7 & 77.9 & $+0.7$ \\
-DINOv3-LoRA-Cog             & 79.4 & 77.9 & $+1.5$ \\
-DreamSim-Pretrained        & 81.0 & 80.3 & $+0.8$ \\
-DreamSim-Scratch           & 79.0 & 78.3 & $+0.7$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.82\linewidth]{figures/error_distribution.pdf}
-\caption{Left: share of each model's NIGHTS-100k errors, stratified by the human-agreement pattern of the underlying triplet (weak 2-1/3-1/4-1, strong X-1 with $X\geq 5$, unanimous X-0). Right: fraction of each model's wrong predictions where at least one human voter agreed with the model. The best models are almost never alone against the humans (DreamSim 96.6\%, DINOv3-LoRA 92.0\%); their errors live where humans themselves were split.}
-\label{fig:errdist}
-\end{figure}
-
-
-
-\clearpage
-\noindent{\Large\bfseries I\quad Extended \S\ref{sec:shape_axes} figures: shape bias, hGRU collapse, LoRA trajectory, 2AFC vs.\ JND}
-\applabel{I}{app:shape_axes_extra}
-\vspace{1em}
-
-These five figures were referenced from \S\ref{sec:shape_axes} but deferred here for length.
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.68\linewidth]{figures/shape_bias_cue_conflict.pdf}
-\caption{Cue-conflict shape bias on the Geirhos 2018 stimuli. DINOv1 preferences are texture-dominated (10.3\%); DINOv2 (23.2\%) and DINOv3 (37.3\%) are more than three times more shape-biased. ResNet-50 is the most texture-dominant (3.75\%); ConvNeXt-Large (19.75\%) and CLIP-ViT-B/16 (29.83\%) sit between. Zero-shot, 1200 cue-conflict images, 16 classes. Humans score $\sim$95\% on the same stimuli \citep{geirhos2018imagenettrained}.}
+\caption{Shape or texture. Each test image has the shape of one object class and the texture of another \citep{geirhos2018imagenettrained}, and the shape bias is how often a model's answer follows the shape. ResNet-50 follows shape least (3.8\%), then DINOv1 (10.3\%), ConvNeXt-Large (19.8\%), DINOv2 (23.2\%), CLIP ViT-B/16 (29.8\%), and DINOv3 (37.3\%). People follow shape about 95\% of the time on these images. All models are frozen; 1{,}200 images, 16 classes.}
 \label{fig:shape_bias_cc}
 \end{figure}
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.78\linewidth]{figures/hgru_spatial_sweep.pdf}
-\caption{Radial-mask sensitivity sweep. Accuracy on 2000 unanimous triplets as a function of radial mask radius, keeping only the center disc (fg, left) or only the surround ring (bg, right). DINO backbones transition smoothly; ResNet-50+hGRU collapses to chance on any foreground radius in $[0.1, 0.5]$ and any background radius below $0.7$, revealing that the lateral-recurrence stage learns a globally coupled representation that fails under any spatial mask.}
+\caption{Masking more or less of the image. Accuracy on 2{,}000 unanimous triplets when only a central disc is kept (left) or only the surround is kept (right), as the radius of the disc changes. The DINO backbones change gradually. The ResNet-50 with an added recurrent layer (hGRU) falls to chance for every disc radius from 0.1 to 0.5 and for every surround radius below 0.7. This is the model that loses 35.8 points under the center mask in \S\ref{sec:shape_axes}.}
 \label{fig:hgru_sweep}
 \end{figure}
 
@@ -579,31 +478,45 @@ These five figures were referenced from \S\ref{sec:shape_axes} but deferred here
 % figures/attention_zs_vs_lora.pdf is a 10-triplet strip (445.3 pt per triplet); show toaster, hotdog and spoonbill, the three the caption discusses
 \includegraphics[width=0.92\linewidth,height=0.47\textheight,keepaspectratio,trim=0 3566 0 0,clip]{figures/attention_zs_vs_lora.pdf}\\[2pt]
 \includegraphics[width=0.92\linewidth,height=0.235\textheight,keepaspectratio,trim=0 0 0 4008,clip]{figures/attention_zs_vs_lora.pdf}
-\caption{Three high-vote NIGHTS unanimous triplets where DINOv2 + LoRA flips the majority-choice decision. Green border = human-majority candidate; red border = LoRA's (wrong) choice. Each panel is overlaid with last-layer CLS attention and annotated with the $\cos(\mathrm{ref}, \cdot)$ values the models computed. The examples share two signatures. (i) LoRA's flips occur at $\cos$ margins as small as 0.005 (spoonbill: $0.905$ vs $0.910$), exactly the voter-noise-scale differences the reproducibility analysis of Section~\ref{sec:ceiling} warned about; (ii) attention geometry is nearly identical between ZS and LoRA, so the shortcut is encoded in the feature representation (sim(full, fg-only) drops consistently for LoRA) and not in where the model looks. Pairwise similarities computed with DINOv2 + rank-8 LoRA + cosine at 224$\times$224.}
+\caption{Fine-tuning reverses correct picks on near-ties. On these three triplets every voter chose the candidate with the green border. Frozen DINOv2 picked that candidate too. After fine-tuning with LoRA the model picks the other one (red border). The numbers are each candidate's cosine similarity to the reference: after fine-tuning the two are almost equal (0.905 against 0.910 for the spoonbill, also shown in Figure~\ref{fig:flip_example}), so a very small shift decides the pick. The colored overlay shows where the model attends. It is almost the same before and after fine-tuning, so the changed pick comes from changed features and not from looking at a different part of the image.}
 \label{fig:attn_zs_vs_lora}
 \end{figure}
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.78\linewidth]{figures/lora_strength_sweep.pdf}
-\caption{Controlled LoRA-strength sweep on a single backbone. DINOv2 + rank-8 LoRA trained for 0--8 epochs on NIGHTS-20k unanimous, each checkpoint evaluated on the 2000-triplet Fig-6 ablation suite. Gray dots: 16-backbone context from Figure~\ref{fig:cost_acc}. Phase 1 (epoch 0\,$\to$\,1) mirrors the cross-backbone invariance tax slope. Phase 2 (epochs 1--8) keeps climbing the fragility axis while clean accuracy reverts toward the zero-shot baseline. Within-backbone evidence that the invariance tax is causal, not a family-level confound.}
+\caption{One backbone trained for longer. DINOv2 is fine-tuned with LoRA on NIGHTS-20k, and the checkpoints after 0, 1, 2, 3, 5, and 8 epochs are scored on the 2{,}000 triplets under the eleven manipulations. Gray dots are sixteen other models for comparison. In the first epoch accuracy and the mean accuracy change under manipulation rise together. From epoch 1 to epoch 8 the change under manipulation keeps rising while accuracy falls back toward the frozen value. The backbone and the data are the same throughout, so the difference comes from the amount of training.}
 \label{fig:lora_strength}
 \end{figure}
+
+\begin{table}[!htbp]\centering\small
+\caption{The six checkpoints in Figure~\ref{fig:epochs}. Original-image accuracy is a percentage. Mean absolute change and the two mask drops are measured in percentage points; positive mask values denote losses from clean accuracy.}
+\pgfplotstabletypeset[columns={epoch,clean,change,center,surround},
+ columns/epoch/.style={column name=Epoch},
+ columns/clean/.style={column name=Original accuracy},
+ columns/change/.style={column name=Mean change},
+ columns/center/.style={column name=Center-only drop},
+ columns/surround/.style={column name=Surround-only drop},
+ every head row/.style={before row=\toprule,after row=\midrule},
+ every last row/.style={after row=\bottomrule}]{\epochdata}
+\end{table}
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.78\linewidth]{figures/tasks_decouple_scatter_v2.pdf}
-\caption{2AFC accuracy and JND AUC per backbone. Horizontal axis: NIGHTS 2AFC accuracy on the 2000 unanimous-triplet subset; vertical axis: JND AUC on the 1{,}216 reference--candidate pairs of the 608 JND triplets. The green arrows trace DINOv1 $\to$ v2 $\to$ v3: v1 leads on 2AFC by 3.1--3.8 pp, but the three lie within 0.03 AUC of each other on JND, inside the $\pm 0.04$ sampling interval. The two models trained on NIGHTS 2AFC (upper right) lead on both tasks.}
+\caption{Forced-choice accuracy against the same/different score, one point per model. Horizontal axis: 2AFC accuracy on the 2{,}000 unanimous triplets. Vertical axis: JND AUC on the 1{,}216 reference--candidate pairs of the 608 JND triplets. The green arrows connect DINOv1, DINOv2, and DINOv3: DINOv1 is 3.1--3.8 points ahead in 2AFC, but the three lie within 0.03 AUC of each other, inside the $\pm 0.04$ sampling interval. The two models trained on NIGHTS 2AFC (upper right) are highest on both.}
 \label{fig:tasks_decouple}
 \end{figure}
 
 
 \clearpage
-\noindent{\Large\bfseries J\quad Qualitative triplet traces}
-\applabel{J}{app:traces}
+\noindent{\Large\bfseries H\quad Example triplets}
+\applabel{H}{app:traces}
 \vspace{1em}
 
-The analyses in the main body are aggregate. This section shows the individual stimuli behind them, drawn unmodified from the released corpus. Figure~\ref{fig:traces_agreement} illustrates what the agreement patterns of \S\ref{sec:ceiling} look like on single triplets, one per pattern from 2-1 to 7-0. A 2-1 triplet carries a label that a fresh panel of three annotators would overturn about a quarter of the time; a 7-0 triplet carries one that reproduces every time. Both contribute equally to a headline accuracy.
+This section shows single triplets behind three points made in the paper. First, labels with very different reliability count the same in an accuracy score (Figure~\ref{fig:traces_agreement}). Second, even the most stable labels are sometimes missed by the strongest model (Figure~\ref{fig:traces_hard}). Third, a unanimous forced choice does not mean that the chosen candidate looks like the reference (Figure~\ref{fig:traces_jnd}).
+
+Figure~\ref{fig:traces_agreement} shows one triplet for each vote pattern from 2-1 to 7-0. A 2-1 label changes in about a quarter of resampled panels (\S\ref{sec:ceiling}), and a 7-0 label never does. Both count equally toward a model's accuracy.
 
 \begin{figure}[!ht]
 \centering
@@ -621,28 +534,21 @@ Figure~\ref{fig:traces_hard} shows the complementary case: unanimous triplets wi
 \label{fig:traces_hard}
 \end{figure}
 
-Figure~\ref{fig:traces_jnd} shows stimuli carrying both NIGHTS labels. All 608 shared triplets come from the X-0 unanimous tier, so the 2AFC/JND comparison of \S\ref{sec:discussion} is a comparison on the easy subset and not the hard one. JND majorities judged both candidates different from the reference in 466 triplets (77\%). In 137 triplets exactly one candidate was judged the same, the chosen one in 103 and the rejected one in 34, and in the remaining 5 both were. Comparing the two JND vote fractions within a triplet, voters judged the chosen candidate less different than the rejected one on 42.3\% of triplets, could not separate the two on 39.6\%, and judged the chosen one more different on 18.1\%.
-
-\begin{figure}[!ht]
-\centering
-\includegraphics[width=\linewidth]{figures/jnd_2afc_examples_v2.png}
-\caption{Triplets carrying both human labels, two for each of the three cases. The label at the top of each candidate gives its 2AFC votes; the label at the bottom gives the JND majority verdict and its vote count.}
-\label{fig:traces_jnd}
-\end{figure}
+Figure~\ref{fig:traces_jnd} in the main text shows triplets that carry both human labels: the forced choice (2AFC) and the same/different judgment (JND). All 608 such triplets are unanimous in 2AFC, so this comparison is made on the labels that look most reliable. Even there, the two tasks often disagree. JND majorities judged both candidates different from the reference in 466 triplets (77\%). In 137 triplets exactly one candidate was judged the same, the chosen one in 103 and the rejected one in 34, and in the remaining 5 both were. Comparing the two JND vote fractions within a triplet, voters judged the chosen candidate less different than the rejected one on 42.3\% of triplets, could not separate the two on 39.6\%, and judged the chosen one more different on 18.1\%. So on fewer than half of these unanimous triplets does the same/different task support the forced choice.
 
 \clearpage
 
-\noindent{\Large\bfseries K\quad Where human voters disagree: splits within and conflicts across the two NIGHTS tasks}
-\applabel{K}{app:disagree}
+\noindent{\Large\bfseries I\quad Where human voters disagree: splits within and conflicts across the two NIGHTS tasks}
+\applabel{I}{app:disagree}
 \vspace{1em}
 
-NIGHTS carries two kinds of human disagreement, and a majority label shows neither. The first is within a task: voters split on the same item. The second is across tasks: the 2AFC label and the JND label of the same image pair point in opposite directions. This section reports both from the released votes.
+NIGHTS carries two kinds of human disagreement, and a majority label shows neither. The first is within a task: voters split on the same item. The second is across tasks: the 2AFC label and the JND label of the same image pair point in opposite directions. Figure~\ref{fig:traces_agreement} shows divided votes within a task, and Figure~\ref{fig:traces_jnd} shows how the two tasks can give different answers on the same triplet.
 
-\paragraph{Splits within 2AFC.} Of the 64{,}420 non-tie triplets, 36{,}476 (57\%) are weak majorities (2-1, 3-1 or 4-1) and 7{,}922 have a single dissent among five or more voters; a further 35{,}580 triplets are ties. Because voting stopped at the first dissent, a split triplet usually has only three or four voters, and a fresh panel of the same size reproduces a 2-1 majority only 74\% of the time (\S\ref{sec:ceiling}). The DreamSim paper reports the split only indirectly, as the roughly 20\% of triplets that survived its unanimity filter, and the public release contains only the unanimous triplets.
+\paragraph{Splits within 2AFC.} Of the 64{,}420 non-tie triplets, 36{,}476 (57\%) are weak majorities (2-1, 3-1 or 4-1) and 7{,}922 have a single dissent among five or more voters; a further 35{,}580 triplets are ties. Because voting stopped at the first dissent, a split triplet usually has only three or four voters, and a fresh panel of the same size reproduces a 2-1 majority only 74\% of the time (\S\ref{sec:ceiling}). Figure~\ref{fig:voting_examples} illustrates what the unanimity filter excluded.
 
-\paragraph{Splits within JND.} JND voters judged each reference--candidate pair ``same'' or ``different'': three voters for 1{,}184 of the 1{,}216 pairs and six for the other 32. Of the pairs, 643 (52.9\%) were unanimous and 573 (47.1\%) were split; none was tied. Applying the fresh-panel resampling of \S\ref{sec:ceiling} to the JND votes, a split JND label is reproduced 74.7\% of the time and the average JND label 88.1\%, the same reliability profile as 2AFC. The DreamSim paper takes the majority of the three votes as the label and reports no split rate. It describes keeping triplets in which humans found exactly one candidate identical; in the release that is 137 of the 608 triplets (23\%).
+\paragraph{Splits within JND.} JND voters judged each reference--candidate pair ``same'' or ``different'': three voters for 1{,}184 of the 1{,}216 pairs and six for the other 32. Of the pairs, 643 (52.9\%) were unanimous and 573 (47.1\%) were split; none was tied. Applying the fresh-panel resampling of \S\ref{sec:ceiling} to the JND votes, a split JND label is reproduced 74.7\% of the time and the average JND label 88.1\%, the same reliability profile as 2AFC. The DreamSim paper takes the majority of the three votes as the label and reports no split rate. It describes keeping triplets in which humans found exactly one candidate identical; in the release that is 137 of the 608 triplets (23\%, Figure~\ref{fig:traces_jnd}).
 
-\paragraph{Conflicts across the two tasks.} Table~\ref{tab:disagree} cross-tabulates the two labels on the 1{,}216 pairs. A pair is consistent when the 2AFC winner is judged ``same'' or the loser ``different,'' and in conflict when the winner is judged ``different'' or the loser ``same.'' The conflicts sit almost entirely in one place: unanimous 2AFC winners that JND voters judged different from the reference. This holds whether the JND vote was split (249 winners) or unanimous (251 winners), so it is not produced by noise in three-vote JND labels. At the triplet level, JND voters judged neither candidate ``same'' in 466 of the 608 triplets (77\%): the unanimous 2AFC vote chose between two images that JND voters saw as different from the reference. Of the 137 triplets in which exactly one candidate was judged ``same,'' that candidate was the 2AFC loser in 34 (25\%). The share of winners judged different does not fall as 2AFC agreement rises: 81\% at 6-0 and 7-0, 82\% at 8-0, 84\% at 9-0, and 91\% at 10-0 (22 triplets). Figure~\ref{fig:traces_jnd} shows examples.
+\paragraph{Conflicts across the two tasks.} Table~\ref{tab:disagree} cross-tabulates the two labels on the 1{,}216 pairs. A pair is consistent when the 2AFC winner is judged ``same'' or the loser ``different,'' and in conflict when the winner is judged ``different'' or the loser ``same.'' The conflicts sit almost entirely in one place: unanimous 2AFC winners that JND voters judged different from the reference. This holds whether the JND vote was split (249 winners) or unanimous (251 winners), so the observation also holds among unanimous JND judgments. At the triplet level, JND voters judged neither candidate ``same'' in 466 of the 608 triplets (77\%): the unanimous 2AFC vote chose between two images that JND voters saw as different from the reference. Of the 137 triplets in which exactly one candidate was judged ``same,'' that candidate was the 2AFC loser in 34 (25\%). The share of winners judged different does not fall as 2AFC agreement rises: 81\% at 6-0 and 7-0, 82\% at 8-0, 84\% at 9-0, and 91\% at 10-0 (22 triplets). Figure~\ref{fig:traces_jnd} shows examples.
 
 \begin{table}[ht]
 \caption{The two human labels on the 1{,}216 reference--candidate pairs of the 608 NIGHTS-JND triplets, all unanimous in 2AFC. Columns give the JND vote, unanimous or split, grouped by its majority. Bold cells point against the 2AFC choice (chosen judged ``different,'' rejected judged ``same''); every candidate is a visibly distorted image, so the first kind is expected, and the informative comparison is between the two rows. The last column is each row's share pointing against the 2AFC choice.}
@@ -663,11 +569,11 @@ All pairs, $n=1{,}216$ & 623 & 446 & 127 & 20 & 44.3\% \\
 \end{tabular}
 \end{table}
 
-\paragraph{What the conflict means.} 2AFC is a forced comparison with no ``neither'' option: a candidate wins by being closer to the reference than the alternative, however different both are. JND asks whether a single candidate can be told apart from the reference. A unanimous 2AFC label therefore certifies a ranking, not similarity, and the 77\% of triplets with both candidates judged different show that most of these unanimous labels rank two visibly different images. Scoring a model against the majority label of either task discards both the splits within each task and the conflict between them.
+\paragraph{What the conflict means.} 2AFC is a forced comparison with no ``neither'' option: a candidate wins by being closer to the reference than the alternative, however different both are. JND asks whether a single candidate can be told apart from the reference. A unanimous 2AFC label therefore certifies a ranking, not similarity, and the 77\% of triplets with both candidates judged different (Figure~\ref{fig:traces_jnd}) show that most of these unanimous labels rank two visibly different images. Scoring a model against the majority label of either task discards both the splits within each task and the conflict between them.
 
-\paragraph{How models resolve the mismatches.} Table~\ref{tab:mismatch} scores sixteen backbones on the triplets where the two tasks can be compared directly. On the 608 triplets DreamSim-Pretrained picks the unanimous 2AFC winner 96.2\% of the time, 6 to 17 points more than any zero-shot backbone. That lead does not carry over to the JND test the DreamSim paper describes, the 137 triplets with exactly one candidate judged ``same.'' DreamSim-Pretrained picks the judged-same candidate in 75.2\% of them, zero-shot DINOv3 in 76.6\%, and DINOv1 in 74.5\%; each DINO backbone's difference from DreamSim has a 95\% bootstrap interval that includes zero. The data set this limit: in 34 of the 137 triplets the judged-same candidate is the 2AFC loser, so a model that reproduced every 2AFC label would score 103 of 137, or 75.2\%, which is DreamSim-Pretrained's score. On those 34 conflict triplets DreamSim-Pretrained sides with the JND verdict 4 times, and zero-shot DINOv2 and DINOv3 10 times each (a difference of 18 points, 95\% bootstrap interval 3 to 33). The sample is small, and the zero-shot backbones also depart from the 2AFC winner more often on the other 574 triplets (12--13\% against 3\%). The result therefore shows that DreamSim follows the 2AFC ranking more closely, not that DINO models JND.
+\paragraph{How models resolve the mismatches.} Figure~\ref{fig:jnd_2afc_tier}c shows the three-way comparison in the main text. Table~\ref{tab:mismatch} scores sixteen backbones on the triplets where the two tasks can be compared directly. On the 608 triplets DreamSim-Pretrained picks the unanimous 2AFC winner 96.2\% of the time, 6 to 17 points more than any zero-shot backbone. That lead does not carry over to the JND test the DreamSim paper describes, the 137 triplets with exactly one candidate judged ``same.'' DreamSim-Pretrained picks the judged-same candidate in 75.2\% of them, zero-shot DINOv3 in 76.6\%, and DINOv1 in 74.5\%; each DINO backbone's difference from DreamSim has a 95\% bootstrap interval that includes zero. The data set this limit: in 34 of the 137 triplets the judged-same candidate is the 2AFC loser, so a model that reproduced every 2AFC label would score 103 of 137, or 75.2\%, which is DreamSim-Pretrained's score. On those 34 conflict triplets DreamSim-Pretrained sides with the JND verdict 4 times, and zero-shot DINOv2 and DINOv3 10 times each (a difference of 18 points, 95\% bootstrap interval 3 to 33). The sample is small, and the zero-shot backbones also depart from the 2AFC winner more often on the other 574 triplets (12--13\% against 3\%). The result therefore shows that DreamSim follows the 2AFC ranking more closely, not that DINO models JND.
 
-DreamSim-Pretrained keeps the highest JND AUC over all pairs (0.727). Part of every model's AUC comes from the 2AFC ranking itself: chosen candidates are judged ``same'' more often than rejected ones (17.8\% against 6.4\%), so scoring every winner below every loser already gives an AUC of 0.633. The last column removes that share by computing the AUC among winners and among losers separately and averaging the two. DreamSim's margin over DINOv3 then falls from 0.030 to 0.019, with a 95\% bootstrap interval of $-0.018$ to $+0.059$.
+DreamSim-Pretrained keeps the highest JND AUC over all pairs (0.727, Figure~\ref{fig:jnd_2afc_tier}b). Part of every model's AUC comes from the 2AFC ranking itself: chosen candidates are judged ``same'' more often than rejected ones (17.8\% against 6.4\%), so scoring every winner below every loser already gives an AUC of 0.633. The last column removes that share by computing the AUC among winners and among losers separately and averaging the two. DreamSim's margin over DINOv3 then falls from 0.030 to 0.019, with a 95\% bootstrap interval of $-0.018$ to $+0.059$.
 
 \begin{table}[ht]
 \caption{Model behavior on the 608 triplets with both human labels. \emph{2AFC winner}: share of the 608 triplets in which the model puts the 2AFC winner closer to the reference. \emph{Judged same}: share of the 137 triplets with exactly one candidate judged ``same'' in which the model puts that candidate closer. \emph{Sides with JND}: number of the 34 conflict triplets, where the judged-same candidate is the 2AFC loser, in which the model puts the loser closer. \emph{Role fixed}: mean of the JND AUC among winners and among losers. The last row is a score that reproduces every 2AFC label. $^\ddagger$This checkpoint's training fold contained 80\% of the JND triplets.}

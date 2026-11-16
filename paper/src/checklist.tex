@@ -6,7 +6,7 @@
 \item {\bf Claims}
     \item[] Question: Do the main claims made in the abstract and introduction accurately reflect the paper's contributions and scope?
     \item[] Answer: \answerYes{} % Replace by \answerYes{}, \answerNo{}, or \answerNA{}.
-    \item[] Justification: The abstract and introduction state the thesis (cosine on a self-supervised backbone captures most of the reproducible perceptual signal NIGHTS measures) and the supporting evidence: a closed-form reproducibility ceiling, foreground-only fragility under fine-tuning, and 2AFC--JND label dissociation. All numerical claims appear in the body and are reproduced from the released per-fold predictions.
+    \item[] Justification: The abstract and introduction identify the unanimous subset used in the published benchmark and report how the models perform on the full non-tie set. The main text gives the vote-resampling calculation, the fold-0 training comparison, and the results on altered images and same-or-different judgments.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the abstract and introduction do not include the claims made in the paper.
@@ -18,7 +18,7 @@
 \item {\bf Limitations}
     \item[] Question: Does the paper discuss the limitations of the work performed by the authors?
     \item[] Answer: \answerYes{} % Replace by \answerYes{}, \answerNo{}, or \answerNA{}.
-    \item[] Justification: Section~\ref{sec:limitations} lists seven explicit caveats: NIGHTS-specific method comparisons, the scope of backbone coverage, fixed LoRA rank, the ambiguous-pair vs minority-bias interpretation of the agreement statistic, the qualitative scale of the JND audit, the within-population scope of the reproducibility ceiling, and the absence of per-rater data and demographics.
+    \item[] Justification: Section~\ref{sec:limitations} discusses the scope of the model comparisons, the fixed adapter rank, the assumptions behind label resampling, and the limits of aggregate vote counts for understanding individual differences.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper has no limitation while the answer \answerNo{} means that the paper has limitations, but those are not discussed in the paper. 
@@ -96,7 +96,7 @@
 \item {\bf Experiment statistical significance}
     \item[] Question: Does the paper report error bars suitably and correctly defined or other appropriate information about the statistical significance of the experiments?
     \item[] Answer: \answerYes{} % Replace by \answerYes{}, \answerNo{}, or \answerNA{}.
-    \item[] Justification: Table~\ref{tab:main} reports 5-fold mean and standard deviation. We do not report pairwise significance tests: gaps inside the label-noise band quantified in \S\ref{sec:ceiling} are not separable from label noise regardless of significance.
+    \item[] Justification: Table~\ref{tab:main} gives means and standard deviations across five folds. We report paired McNemar tests for the training-set comparison on fold 0 (Table~\ref{tab:ladder}) and paired bootstrap intervals for model differences on the JND triplets (Appendix~\ref{app:disagree}).
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper does not include experiments.
